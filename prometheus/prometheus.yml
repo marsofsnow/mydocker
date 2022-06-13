@@ -1,7 +1,7 @@
 # my global config
 global:
-  scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute. 
-  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.     
+  scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
   # scrape_timeout is set to the global default (10s).
 
 # Alertmanager configuration
@@ -11,7 +11,7 @@ alerting:
         - targets:
           # - alertmanager:9093
 
-# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.  
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
 rule_files:
   # - "first_rules.yml"
   # - "second_rules.yml"
@@ -29,46 +29,11 @@ scrape_configs:
       - targets: ["localhost:9090"]
 
   # 我们自己的商城项目配置
-  - job_name: 'mall'
+  - job_name: 'gobbs'
     static_configs:
       # 目标的采集地址
-      - targets: ['golang:9080']
+      - targets: ['192.168.0.148:9999']
         labels:
           # 自定义标签
-          app: 'user-api'
-          env: 'test'
-
-      - targets: ['golang:9090']
-        labels:
-          app: 'user-rpc'
-          env: 'test'
-
-      - targets: ['golang:9081']
-        labels:
-          app: 'product-api'
-          env: 'test'
-
-      - targets: ['golang:9091']
-        labels:
-          app: 'product-rpc'
-          env: 'test'
-
-      - targets: ['golang:9082']
-        labels:
-          app: 'order-api'
-          env: 'test'
-
-      - targets: ['golang:9092']
-        labels:
-          app: 'order-rpc'
-          env: 'test'
-
-      - targets: ['golang:9083']
-        labels:
-          app: 'pay-api'
-          env: 'test'
-
-      - targets: ['golang:9093']
-        labels:
-          app: 'pay-rpc'
+          app: 'gobbs-api'
           env: 'test'

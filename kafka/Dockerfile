@@ -1,3 +1,3 @@
-FROM mysql/mysql-server:8.0.28
+FROM wurstmeister/kafka
 
 LABEL maintainer="dyntrait <dyntrait@outlook.com>"
