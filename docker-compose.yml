@@ -48,8 +48,9 @@ services:
       context: ./elasticsearch
     container_name: elasticsearch
     user: root
+    privileged: true
     environment:
-      - discovery.type=single-node
+      - "discovery.type=single-node"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - TZ=${TZ}
     volumes:
@@ -140,7 +141,7 @@ services:
     environment:
       - KAFKA_ADVERTISED_HOST_NAME=kafka
       - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=false
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
       - TZ=${TZ}
     restart: always
     volumes:

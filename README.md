@@ -1,6 +1,9 @@
 # gonivinck
 一个基于 `docker` 的 `go-zero` 本地开发运行环境。
-
+## 前置条件
+因为data目录要做为容器卷,所以需要授权
+chmod 777 data
+sudo chown -R zh:zh data/  (并且目录的归属要是当前登录帐号)
 
 ## 使用
 ### 1. 按需修改 .env 配置
