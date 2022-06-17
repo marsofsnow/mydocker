@@ -2,6 +2,7 @@ filebeat.inputs:
   - type: log
     enabled: true
     paths:
+      - /app/logs/*.log
       - /var/lib/docker/containers/*/*-json.log
 
 filebeat.config:

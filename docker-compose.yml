@@ -112,6 +112,7 @@ services:
       # 如snap安装的docker，则为/var/snap/docker/common/var-lib-docker/containers
       # - /var/snap/docker/common/var-lib-docker/containers:/var/lib/docker/containers
       - /var/lib/docker/containers:/var/lib/docker/containers
+      - /a1/go/go-together/app/golemmy/cmd/api/deploy/logs:/app/logs
     networks:
       - backend
     depends_on:
@@ -181,6 +182,30 @@ services:
       - ${DATA_PATH_HOST}/mysql:/var/lib/mysql        # 引用 .env 配置中 DATA_PATH_HOST 变量，将宿主机上存放 Mysql 数据的目录挂载到容器中 /var/lib/mysql 目录
     ports:
       - "${MYSQL_PORT}:3306"                          # 设置容器3306端口映射指定宿主机端口
+    networks:
+      - backend
+    restart: always
+
+
+  postgresql:
+    build:
+      context: ./postgresql
+    environment:
+      - TZ=${TZ}
+      - POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}         # 设置 postresql 超级用户postgres 用户密码
+      - PGDATA=/var/lib/postgresql/data
+    command:
+      # 将mysql8.0默认密码策略 修改为 原先 策略 (mysql8.0对其默认策略做了更改 会导致密码无法匹配)
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --explicit_defaults_for_timestamp=true
+      --lower_case_table_names=1
+    privileged: true
+    volumes:
+      - ${DATA_PATH_HOST}/pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT}:5432"                          # 设置容器3306端口映射指定宿主机端口
     networks:
       - backend
     restart: always
