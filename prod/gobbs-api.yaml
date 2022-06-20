@@ -17,7 +17,7 @@ Prometheus:
 
 
 Timeout: 0 #debug 不设置超时
-DataSource: postgres://lemmy:dabaicai@123!@127.0.0.1:59996/lemmydb?sslmode=disable&TimeZone=Asia%2FShanghai
+DataSource: postgres://lemmy:dabaicai@123!@127.0.0.1:59996/lemmydb?sslmode=disable
 Cache:
   - Host: localhost:6379
 Auth:

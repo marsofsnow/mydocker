@@ -192,15 +192,12 @@ services:
       context: ./postgresql
     environment:
       - TZ=${TZ}
-      - POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}         # 设置 postresql 超级用户postgres 用户密码
+      #- POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}         # 设置 postresql 超级用户postgres 用户密码
       - PGDATA=/var/lib/postgresql/data
-    command:
-      # 将mysql8.0默认密码策略 修改为 原先 策略 (mysql8.0对其默认策略做了更改 会导致密码无法匹配)
-      --default-authentication-plugin=mysql_native_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_general_ci
-      --explicit_defaults_for_timestamp=true
-      --lower_case_table_names=1
+      - POSTGRES_USER=lemmy
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=lemmy
+
     privileged: true
     volumes:
       - ${DATA_PATH_HOST}/pgdata:/var/lib/postgresql/data
@@ -283,7 +280,7 @@ services:
       - TZ=${TZ}
     privileged: true
     volumes:
-      - ./prometheus/prometheus.yml:/opt/bitnami/prometheus/conf/prometheus.yml  # 将 prometheus 配置文件挂载到容器里
+      - ./prometheus/prometheus.yml:/opt/bitnami/prometheus/conf/prometheus.yml
       - ${DATA_PATH_HOST}/prometheus/data:/prometheus
     command:
       - '--config.file=/opt/bitnami/prometheus/conf/prometheus.yml'
