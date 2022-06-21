@@ -319,7 +319,14 @@ services:
       - LOG_LEVEL=debug
     ports:
       - "${JAEGER_PORT}:16686"                        # 设置容器16686端口映射指定宿主机端口，用于宿主机访问可视化web
-      - "${JAEGER_COLLECTOR_HTTP_PORT}:14268"         # 设置容器16686端口映射指定宿主机端口，用于宿主机访问可视化web
+      - "${JAEGER_COLLECTOR_HTTP_PORT}:14268"
+      #- "5775:5775/udp"
+      #- "6831:6831/udp"
+      #- "6832:6832/udp"
+      #- "5778:5778"
+      #- "16686:16686"
+      #- "14268:14268"
+      #- "9411:9411"
     networks:
       - backend
     restart: always

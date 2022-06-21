@@ -1,4 +1,7 @@
-docker-compose up   elasticsearch kibana go-stash filebeat  zookeeper kafka  prometheus grafana  jaeger
+
+mkdir –p ./data/elasticsearch/data
+sudo chmod 777 ./data/elasticsearch/data
+docker-compose up   elasticsearch zookeeper kafka     filebeat  go-stash  kibana    prometheus grafana  jaeger
 #docker-compose up   zookeeper kafka
 #docker-compose down    prometheus grafana  jaeger
 #docker-compose up -d prometheus grafana  jaeger
