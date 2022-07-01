@@ -1,0 +1,1 @@
+docker-compose -f nats-cluster.yaml up
