@@ -5,6 +5,7 @@ docker-compose up   elasticsearch zookeeper kafka     filebeat  go-stash  kibana
 #docker-compose up   zookeeper kafka
 #docker-compose down    prometheus grafana  jaeger
 #docker-compose up -d prometheus grafana  jaeger
+docker-compose up  postgresql pgadmin4
 
 
 # 在kafka中创建topic

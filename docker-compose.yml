@@ -9,6 +9,7 @@ services:
   golang:                                # 自定义容器名称
     build:
       context: ./golang                  # 指定构建使用的 Dockerfile 文件
+    container_name: golang
     environment:                         # 设置环境变量
       - TZ=${TZ}
     privileged: true
@@ -32,6 +33,7 @@ services:
   etcd:                                  # 自定义容器名称
     build:
       context: ./etcd                    # 指定构建使用的 Dockerfile 文件
+    container_name: etcd
     environment:
       - TZ=${TZ}
       - ALLOW_NONE_AUTHENTICATION=yes
@@ -165,10 +167,11 @@ services:
   mysql:
     build:
       context: ./mysql
+    container_name: mysql
     environment:
       - TZ=${TZ}
-      - MYSQL_USER=${MYSQL_USERNAME}                  # 设置 Mysql 用户名称
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}              # 设置 Mysql 用户密码
+      #- MYSQL_USER=${MYSQL_USERNAME}                  # 设置 Mysql 用户名称
+      #- MYSQL_PASSWORD=${MYSQL_PASSWORD}              # 设置 Mysql 用户密码
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}    # 设置 Mysql root 用户密码
     command:
       # 将mysql8.0默认密码策略 修改为 原先 策略 (mysql8.0对其默认策略做了更改 会导致密码无法匹配)
@@ -179,7 +182,15 @@ services:
       --lower_case_table_names=1
     privileged: true
     volumes:
-      - ${DATA_PATH_HOST}/mysql:/var/lib/mysql        # 引用 .env 配置中 DATA_PATH_HOST 变量，将宿主机上存放 Mysql 数据的目录挂载到容器中 /var/lib/mysql 目录
+      - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
+      # 数据挂载
+      #- ~/docker-volumes/mysql/data:/var/lib/mysql
+      # 配置挂载
+      #- /root/mysql/conf/:/etc/mysql/conf.d/
+      # 将sql文件放到容器中的 /docker-entrypoint-initdb.d/ 目录，就会在mysql第一次启动时执行。之后重启容器不会重复执行！
+      #如果此目录放置多个sql文件，它执行时是没有顺序的。因此，这个目录只放一个init.sql，专门用来控制执行sql顺序的
+      - ./mysql/init:/docker-entrypoint-initdb.d/
+      - ./mysql/sql:/opt/sql
     ports:
       - "${MYSQL_PORT}:3306"                          # 设置容器3306端口映射指定宿主机端口
     networks:
@@ -190,22 +201,47 @@ services:
   postgresql:
     build:
       context: ./postgresql
+    container_name: postgresql
     environment:
       - TZ=${TZ}
-      #- POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}         # 设置 postresql 超级用户postgres 用户密码
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}     # 设置 postresql 超级用户postgres 用户密码
+      - POSTGRES_DB=postgres
       - PGDATA=/var/lib/postgresql/data
-      - POSTGRES_USER=lemmy
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=lemmy
+        #init 脚本使用以下环境变量创建数据库用户和数据库供应用程序使用:
+      - APP_DB_USER=lemmy
+      - APP_DB_PASS=dabaicai@123!
+      - APP_DB_NAME=lemmydb
+
 
     privileged: true
     volumes:
       - ${DATA_PATH_HOST}/pgdata:/var/lib/postgresql/data
+      - ./postgresql/init:/docker-entrypoint-initdb.d/
     ports:
       - "${POSTGRES_PORT}:5432"                          # 设置容器3306端口映射指定宿主机端口
     networks:
       - backend
     restart: always
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    restart: always
+    user: root
+    privileged: true
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dyntrait@outlook.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - ${DATA_PATH_HOST}/pgadmin:/var/lib/pgadmin
+    depends_on:
+      - postgresql
+    networks:
+      - backend
 
   redis:
     build:
@@ -226,6 +262,7 @@ services:
   mysql-manage:
     build:
       context: ./mysql-manage
+    container_name: mysql-manage
     environment:
       - TZ=${TZ}
       - PMA_ARBITRARY=1
@@ -245,6 +282,7 @@ services:
   redis-manage:
     build:
       context: ./redis-manage
+    container_name: mysql-manage
     environment:
       - TZ=${TZ}
       - ADMIN_USER=${REDIS_MANAGE_USERNAME}           # 设置 Redis 可视化管理的用户名称
@@ -262,6 +300,7 @@ services:
   etcd-manage:
     build:
       context: ./etcd-manage
+    container_name: etcd-manage
     environment:
       - TZ=${TZ}
     ports:
@@ -334,6 +373,7 @@ services:
   dtm:
     build:
       context: ./dtm
+    container_name: dtm
     environment:
       - TZ=${TZ}
     entrypoint:
