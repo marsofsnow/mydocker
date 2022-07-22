@@ -30,12 +30,23 @@ scrape_configs:
       - targets: ["localhost:9090"]
 
   # 我们自己的商城项目配置
-  - job_name: 'gobbs'
+  - job_name: 'golemmy'
     static_configs:
       # 目标的采集地址
-      - targets: ['192.168.0.148:9999']
+      - targets: ['golemmy:18889']
         labels:
-          job: gobbs
+          job: golemmy
           # 自定义标签
-          app: 'gobbs-api'
-          env: 'test'
+          app: 'golemmy'
+          env: 'pro'
+
+  - job_name: 'wspush'
+    static_configs:
+      # 目标的采集地址
+      - targets: ['wpush:28889']
+        labels:
+          job: wspush
+          # 自定义标签
+          app: 'wspush'
+          env: 'pro'
+
