@@ -1,0 +1,409 @@
+version: '3.5'
+# 网络配置
+networks:
+  backend:
+    name:  backend
+    driver: ${NETWORKS_DRIVER}
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+
+# 服务容器配置
+services:
+  golang:                                # 自定义容器名称
+    build:
+      context: ./golang                  # 指定构建使用的 Dockerfile 文件
+    container_name: golang
+    environment:                         # 设置环境变量
+      - TZ=${TZ}
+    privileged: true
+    volumes:                             # 设置挂载目录
+      - ${CODE_PATH_HOST}:/usr/src/code  # 引用 .env 配置中 CODE_PATH_HOST 变量，将宿主机上代码存放的目录挂载到容器中 /usr/src/code 目录
+    ports:                               # 设置端口映射
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+      - "8003:8003"
+      - "9000:9000"
+      - "9001:9001"
+      - "9002:9002"
+      - "9003:9003"
+    stdin_open: true                     # 打开标准输入，可以接受外部输入
+    tty: true
+    networks:
+      - backend
+    restart: always                      # 指定容器退出后的重启策略为始终重启
+
+
+
+  #搜集kafka业务日志、存储prometheus监控数据
+  elasticsearch:
+    build:
+      context: ./elasticsearch
+    container_name: elasticsearch
+    user: root
+    privileged: true
+    environment:
+      - "discovery.type=single-node"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - TZ=${TZ}
+    volumes:
+      - ${DATA_PATH_HOST}/elasticsearch/data:/usr/share/elasticsearch/data
+      - ./elasticsearch/analysis-ik/config:/usr/share/elasticsearch/config/analysis-ik
+      - ./elasticsearch/analysis-ik/plugins:/usr/share/elasticsearch/plugins/analysis-ik
+
+    restart: always
+    ports:
+    - "${ELASTICSEARCH_PORT}:9200"
+    - 9300:9300
+    networks:
+      - backend
+
+  #查看elasticsearch数据
+  kibana:
+    build:
+      context: ./kibana
+    container_name: kibana
+    environment:
+      - elasticsearch.hosts=http://elasticsearch:9200
+      - TZ=${TZ}
+    restart: always
+    networks:
+      - backend
+    ports:
+      - "${KIBANA_PORT}:5601"
+    depends_on:
+      - elasticsearch
+
+
+  #zookeeper是kafka的依赖
+  zookeeper:
+    build:
+      context: ./zookeeper
+    container_name: zookeeper
+    environment:
+      # 时区上海
+      - TZ=${TZ}
+    restart: always
+    ports:
+      - "${ZOOKEEPER_PORT}:2181"
+    networks:
+      - backend
+
+    #消息队列
+  kafka:
+    build:
+      context: ./kafka
+    container_name: kafka
+    ports:
+      - "${KAFKA_PORT}:9094"
+    environment:
+      #- KAFKA_ADVERTISED_HOST_NAME=kafka 废弃
+
+      #- KAFKA_LISTENERS=PLAINTEXT://kafka:9092 #这个参数非常重要,想要外网访问docker内的集群,只能配置主机名,不能配置ip地址,在主机hosts文件中 127.0.0.1 kafka
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      #HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
+      #KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://_{HOSTNAME_COMMAND}:9094
+      #KAFKA_ADVERTISED_LISTENERS的配置是关键,OUTSIDE://localhost:9093的填写在本地搭建的docker集群,可以允许本机的程序访问,如果要支持外部程序访问, 可以更换ip
+      - KAFKA_ADVERTISED_LISTENERS=INSIDE://kafka:9092,OUTSIDE://localhost:9094
+      - KAFKA_LISTENERS=INSIDE://:9092,OUTSIDE://:9094
+      - KAFKA_INTER_BROKER_LISTENER_NAME=INSIDE
+      - KAFKA_CREATE_TOPICS="gostash:1:3,test:1:1:compact"
+      - TZ=${TZ}
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+    depends_on:
+      - zookeeper
+
+  #消费kafka中filebeat收集的数据输出到es
+  go-stash:
+    image: kevinwan/go-stash:latest # if you "macOs intel" or "linux amd"
+#    image: kevinwan/go-stash:1.0-arm64 #  if you "macOs m1" or "linux arm"
+    container_name: go-stash
+    environment:
+      # 时区上海
+      - TZ=${TZ}
+    user: root
+    restart: always
+    volumes:
+      - ./go-stash:/app/etc
+    networks:
+      - backend
+    depends_on:
+      - elasticsearch
+      - kafka
+
+  #收集业务数据
+  filebeat:
+    image: elastic/filebeat:7.13.4
+    container_name: filebeat
+    environment:
+      # 时区上海
+     - TZ=${TZ}
+    user: root
+    restart: always
+    entrypoint: "filebeat -e -strict.perms=false"  #解决配置文件权限问题
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      # 此处需指定docker的containers目录，取决于你docker的配置
+      # 如snap安装的docker，则为/var/snap/docker/common/var-lib-docker/containers
+      # - /var/snap/docker/common/var-lib-docker/containers:/var/lib/docker/containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - ~/dyntrait-app/logs:/app/logs
+    networks:
+      - backend
+    depends_on:
+      - kafka
+
+
+
+
+
+
+  postgresql:
+    build:
+      context: ./postgresql
+    container_name: postgresql
+    environment:
+      - TZ=${TZ}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}     # 设置 postresql 超级用户postgres 用户密码
+      - POSTGRES_DB=postgres
+      - PGDATA=/var/lib/postgresql/data
+        #init 脚本使用以下环境变量创建数据库用户和数据库供应用程序使用:
+      - APP_DB_USER=lemmy
+      - APP_DB_PASS=dabaicai@123!
+      - APP_DB_NAME=lemmydb
+
+
+    privileged: true
+    volumes:
+      -/home/adxchain/bbs/pgdata:/var/lib/postgresql/data
+      # ${DATA_PATH_HOST}/pgdata:/var/lib/postgresql/data
+      - ./postgresql/init:/docker-entrypoint-initdb.d/
+    ports:
+      - "${POSTGRES_PORT}:5432"                          # 设置容器5432端口映射指定宿主机端口
+    networks:
+      - backend
+    restart: always
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    restart: always
+    user: root
+    privileged: true
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dyntrait@outlook.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - ${DATA_PATH_HOST}/pgadmin:/var/lib/pgadmin
+    depends_on:
+      - postgresql
+    networks:
+      - backend
+
+
+  mysql:
+    build:
+      context: ./mysql
+    container_name: mysql
+    environment:
+      - TZ=${TZ}
+      #- MYSQL_USER=${MYSQL_USERNAME}                  # 设置 Mysql 用户名称
+      #- MYSQL_PASSWORD=${MYSQL_PASSWORD}              # 设置 Mysql 用户密码
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}    # 设置 Mysql root 用户密码
+    command:
+      # 将mysql8.0默认密码策略 修改为 原先 策略 (mysql8.0对其默认策略做了更改 会导致密码无法匹配)
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --explicit_defaults_for_timestamp=true
+      --lower_case_table_names=1
+    privileged: true
+    volumes:
+      # 数据挂载
+      - ${DATA_PATH_HOST}/mysql:/var/lib/mysql
+      # 配置挂载
+      #- ./mysql/conf/:/etc/mysql/conf.d/
+      # 将sql文件放到容器中的 /docker-entrypoint-initdb.d/ 目录，就会在mysql第一次启动时执行。之后重启容器不会重复执行！
+      #如果此目录放置多个sql文件，它执行时是没有顺序的。因此，这个目录只放一个init.sql，专门用来控制执行sql顺序的
+      - ./mysql/init:/docker-entrypoint-initdb.d/
+      - ./mysql/sql:/opt/sql
+    ports:
+      - "${MYSQL_PORT}:3306"                          # 设置容器3306端口映射指定宿主机端口
+    networks:
+      - backend
+    restart: always
+
+
+
+  mysql-manage:
+    build:
+      context: ./mysql-manage
+    container_name: mysql-manage
+    environment:
+      - TZ=${TZ}
+      - PMA_ARBITRARY=1
+      - MYSQL_USER=${MYSQL_MANAGE_USERNAME}               # 设置连接的 Mysql 服务用户名称
+      - MYSQL_PASSWORD=${MYSQL_MANAGE_PASSWORD}           # 设置连接的 Mysql 服务用户密码
+      - MYSQL_ROOT_PASSWORD=${MYSQL_MANAGE_ROOT_PASSWORD} # 设置连接的 Mysql 服务 root 用户密码
+      - PMA_HOST=${MYSQL_MANAGE_CONNECT_HOST}             # 设置连接的 Mysql 服务 host，可以是 Mysql 服务容器的名称，也可以是 Mysql 服务容器的 ip 地址
+      - PMA_PORT=${MYSQL_MANAGE_CONNECT_PORT}             # 设置连接的 Mysql 服务端口号
+    ports:
+      - "${MYSQL_MANAGE_PORT}:80"                         # 设置容器80端口映射指定宿主机端口，用于宿主机访问可视化web
+    depends_on:                                           # 依赖容器
+      - mysql                                             # 在 Mysql 服务容器启动后启动
+    networks:
+      - backend
+    restart: always
+
+  redis:
+    build:
+      context: ./redis
+    container_name: redis
+    environment:
+      - TZ=${TZ}
+    privileged: true
+    volumes:
+      - ${DATA_PATH_HOST}/redis:/data                 # 引用 .env 配置中 DATA_PATH_HOST 变量，将宿主机上存放 Redis 数据的目录挂载到容器中 /data 目录
+    #command: "redis-server --requirepass G62m50oigInC30sf  --appendonly yes"
+    ports:
+      - "${REDIS_PORT}:6379"                          # 设置容器6379端口映射指定宿主机端口
+    networks:
+      - backend
+    restart: always
+
+  redis-manage:
+    build:
+      context: ./redis-manage
+    container_name: mysql-manage
+    environment:
+      - TZ=${TZ}
+      - ADMIN_USER=${REDIS_MANAGE_USERNAME}           # 设置 Redis 可视化管理的用户名称
+      - ADMIN_PASS=${REDIS_MANAGE_PASSWORD}           # 设置 Redis 可视化管理的用户密码
+      - REDIS_1_HOST=${REDIS_MANAGE_CONNECT_HOST}     # 设置连接的 Redis 服务 host，可以是 Redis 服务容器的名称，也可以是 Redis 服务容器的 ip 地址
+      - REDIS_1_PORT=${REDIS_MANAGE_CONNECT_PORT}     # 设置连接的 Redis 服务端口号
+    ports:
+      - "${REDIS_MANAGE_PORT}:80"                     # 设置容器80端口映射指定宿主机端口，用于宿主机访问可视化web
+    depends_on:                                       # 依赖容器
+      - redis                                         # 在 Redis 服务容器启动后启动
+    networks:
+      - backend
+    restart: always
+
+  etcd:                                  # 自定义容器名称
+    build:
+      context: ./etcd                    # 指定构建使用的 Dockerfile 文件
+    container_name: etcd
+    environment:
+      - TZ=${TZ}
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    ports:                               # 设置端口映射
+      - "${ETCD_PORT}:2379"
+    networks:
+      - backend
+    restart: always
+
+  etcd-manage:
+    build:
+      context: ./etcd-manage
+    container_name: etcd-manage
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "${ETCD_MANAGE_PORT}:8080"                    # 设置容器8080端口映射指定宿主机端口，用于宿主机访问可视化web
+    depends_on:                                       # 依赖容器
+      - etcd                                          # 在 etcd 服务容器启动后启动
+    networks:
+      - backend
+    restart: always
+
+  prometheus:
+    build:
+      context: ./prometheus
+    container_name: prometheus
+    environment:
+      - TZ=${TZ}
+    privileged: true
+    volumes:
+      - ./prometheus/prometheus.yml:/opt/bitnami/prometheus/conf/prometheus.yml
+      - ${DATA_PATH_HOST}/prometheus/data:/prometheus
+    command:
+      - '--config.file=/opt/bitnami/prometheus/conf/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    user: root
+    ports:
+      - "${PROMETHEUS_PORT}:9090"                     # 设置容器9090端口映射指定宿主机端口，用于宿主机访问可视化web
+    networks:
+      - backend
+    restart: always
+
+  grafana:
+    build:
+      context: ./grafana
+    container_name: grafana
+    hostname: grafana
+    user: root
+    environment:
+      - TZ=${TZ}
+    volumes:
+    - ${DATA_PATH_HOST}/grafana/data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"                        # 设置容器3000端口映射指定宿主机端口，用于宿主机访问可视化web
+    networks:
+      - backend
+    restart: always
+
+  jaeger:
+    build:
+      context: ./jaeger
+    container_name: jaeger
+    environment:
+      - TZ=${TZ}
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      - LOG_LEVEL=debug
+    ports:
+      - "${JAEGER_PORT}:16686"                        # 设置容器16686端口映射指定宿主机端口，用于宿主机访问可视化web
+      - "${JAEGER_COLLECTOR_HTTP_PORT}:14268"
+      #- "5775:5775/udp"
+      #- "6831:6831/udp"
+      #- "6832:6832/udp"
+      #- "5778:5778"
+      #- "16686:16686"
+      #- "14268:14268"
+      #- "9411:9411"
+    networks:
+      - backend
+    restart: always
+
+  dtm:
+    build:
+      context: ./dtm
+    container_name: dtm
+    environment:
+      - TZ=${TZ}
+    entrypoint:
+      - "/app/dtm/dtm"
+      - "-c=/app/dtm/configs/config.yaml"
+    privileged: true
+    volumes:
+      - ./dtm/config.yml:/app/dtm/configs/config.yaml # 将 dtm 配置文件挂载到容器里
+    ports:
+      - "${DTM_HTTP_PORT}:36789"
+      - "${DTM_GRPC_PORT}:36790"
+    networks:
+      - backend
+    restart: always
