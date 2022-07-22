@@ -4,6 +4,8 @@
 因为data目录要做为容器卷,所以需要授权
 chmod 777 data
 sudo chown -R zh:zh data/  (并且目录的归属要是当前登录帐号)
+项目里所有的app日志都要写到这里(app不在容器中运行)
+mkdir -r ~/dyntrait-app/logs
 
 ## 使用
 ### 1. 按需修改 .env 配置
