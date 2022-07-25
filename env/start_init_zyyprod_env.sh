@@ -10,7 +10,7 @@ if [ ! -d "$es_data_dir" ]; then
 fi
 
 
-docker-compose up   elasticsearch  kibana  zookeeper kafka     filebeat  go-stash   prometheus grafana  jaeger redis postgresql
+docker compose up   elasticsearch  kibana  zookeeper kafka     filebeat  go-stash   prometheus grafana  jaeger redis postgresql
 #docker-compose up   zookeeper kafka
 #docker-compose down    prometheus grafana  jaeger
 #docker-compose up -d prometheus grafana  jaeger

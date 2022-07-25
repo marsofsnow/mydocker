@@ -1,1 +1,1 @@
-docker-compose -f nats-cluster.yaml up nats nats-1 nats-2
+docker compose -f nats-cluster.yaml up nats nats-1 nats-2

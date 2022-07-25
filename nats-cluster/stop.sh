@@ -1,1 +1,1 @@
-docker-compose -f nats-cluster.yaml down
+docker compose -f nats-cluster.yaml down
