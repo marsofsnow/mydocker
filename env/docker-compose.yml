@@ -187,7 +187,7 @@ services:
     volumes:
       -/home/adxchain/bbs/pgdata_bak:/var/lib/postgresql/data
       # ${DATA_PATH_HOST}/pgdata:/var/lib/postgresql/data
-      - ./postgresql/init:/docker-entrypoint-initdb.d/
+      -./postgresql/init:/docker-entrypoint-initdb.d/
     ports:
       - "${POSTGRES_PORT}:5432"                          # 设置容器5432端口映射指定宿主机端口
     networks:
