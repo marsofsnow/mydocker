@@ -24,7 +24,7 @@ Telemetry:
 
 
 Timeout: 0 #debug 不设置超时
-DataSource: postgres://lemmy:dabaicai@123!@pg:5432/lemmydb?sslmode=disable
+DataSource: postgres://lemmy:dabaicai@123!@postgresql:5432/lemmydb?sslmode=disable
 Cache:
   - Host: redis:6379
 Auth:
