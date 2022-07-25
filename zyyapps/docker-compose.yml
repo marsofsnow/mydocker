@@ -21,7 +21,7 @@ services:
     privileged: true
     volumes:                             # 设置挂载目录
       - ${APPS_PATH_HOST}/golemmy:/app  # 引用 .env 配置中 APPS_PATH_HOST 变量，将宿主机上app及配置存放的目录挂载到容器中/app目录
-      - ${DATA_PATH_HOST}/golemmy:/static  # 引用 .env 配置中 DATA_PATH_HOST 变量，将宿主机上data存放的目录挂载到容器中/static 目录
+      - ${DATA_PATH_HOST}/golemmy/static:/static  # 引用 .env 配置中 DATA_PATH_HOST 变量，将宿主机上data存放的目录挂载到容器中/static 目录
     ports:                               # 设置端口映射
       - "${HTTPSERVER_PORT}:18888"
     networks:
