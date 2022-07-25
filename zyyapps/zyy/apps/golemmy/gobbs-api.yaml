@@ -36,7 +36,7 @@ Ipfs:
 #合约的配置
 EOS:
   ChainUrls:
-    - http://47.57.240.154:8000 #测试环境
+    - http://47.57.240.154:8000
   Privatekey: 5J24QxZv1vMptEjvuJjETZdHuSTbeHrrfHu8qj5E1j5sY3oisT5
   Publickey: ADX7Vx8RgJAEt4mDEfTBKpd5UTEYAqqNFmTvszTMR7twppUnWGBHe
   ChainId: 50dbcf98ee1438b7ddb483304c2b6051422bfde8909dea85fa593ba07d5e74cb

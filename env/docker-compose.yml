@@ -185,7 +185,7 @@ services:
 
     privileged: true
     volumes:
-      -/home/adxchain/bbs/pgdata:/var/lib/postgresql/data
+      -/home/adxchain/bbs/pgdata_bak:/var/lib/postgresql/data
       # ${DATA_PATH_HOST}/pgdata:/var/lib/postgresql/data
       - ./postgresql/init:/docker-entrypoint-initdb.d/
     ports:
